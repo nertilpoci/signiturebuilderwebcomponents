@@ -17,7 +17,8 @@ export const config: Config = {
     },
     {
       type: 'www',
-      serviceWorker: null, // disable service workers
+      serviceWorker: null,
+      baseUrl: 'https://nertilpoci.github.io/signiturebuilderwebcomponents/', 
       copy: [
         {
           src: '../node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
