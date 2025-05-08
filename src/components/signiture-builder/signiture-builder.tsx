@@ -1,12 +1,12 @@
-import { Component, Host, h, Prop, State, Event, EventEmitter, Watch, Method } from '@stencil/core';
+import { Component, Host, h, Prop, State, Element, Watch } from '@stencil/core';
 import * as pdfjsLib from 'pdfjs-dist';
 
-interface FormField {
-  fieldId: string;
-  type: 'signature' | 'name';
+interface Field {
+  id: string;
+  type: string;
+  page: number;
   x: number;
   y: number;
-  page: number;
   width: number;
   height: number;
 }
@@ -17,236 +17,155 @@ interface FormField {
   shadow: true,
 })
 export class SignitureBuilder {
+  @Element() el: HTMLElement;
+
   @Prop() fileUrl: string;
-
-  @State() currentPage: number = 1;
+  @State() pdfDoc: any;
   @State() totalPages: number = 0;
-  @State() isLoading: boolean = false;
-  @State() error: string = null;
-  @State() fields: FormField[] = [];
-  @State() activeFieldType: 'signature' | 'name' = null;
-  @State() isCanvasReady: boolean = false;
+  @State() scale: number = 1.2;
+  @State() fields: Field[] = [];
+  @State() selectedFieldType: string = null;
+  @State() pageDims: Record<number, { width: number; height: number }> = {};
 
-  private canvasRef: HTMLCanvasElement;
-  private pdfDocument: any = null;
+  private draggingField: Field = null;
+  private dragOffsetX = 0;
+  private dragOffsetY = 0;
 
-  @Event() fieldAdded: EventEmitter<FormField>;
-  @Event() fieldRemoved: EventEmitter<{ fieldId: string }>;
-  @Event() fieldsChanged: EventEmitter<FormField[]>;
-  @Event() pdfLoaded: EventEmitter<{ pages: number }>;
-
-  @Method()
-  async getFields(): Promise<FormField[]> {
-    return [...this.fields];
-  }
-
-  @Method()
-  async setActiveFieldType(type: 'signature' | 'name'): Promise<void> {
-    this.activeFieldType = type;
-  }
+  private fieldTypes = [
+    { type: 'signature', label: '✍ Signature', width: 150, height: 50 },
+    { type: 'text', label: '📝 Text', width: 120, height: 40 },
+    { type: 'date', label: '📅 Date', width: 100, height: 40 },
+  ];
 
   componentWillLoad() {
-    // Set the worker source
     pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.mjs';
-  }
-
-  componentDidLoad() {
-    // Canvas is now available in the DOM
-    this.isCanvasReady = true;
-    
-    // Load PDF if URL was provided
-    if (this.fileUrl) {
-      this.loadPdf();
-    }
+    if (this.fileUrl) this.loadPdf();
   }
 
   @Watch('fileUrl')
-  async watchFileUrl(newUrl: string) {
-    if (newUrl && this.isCanvasReady) {
-      this.loadPdf();
-    }
+  fileUrlChanged() {
+    this.loadPdf();
   }
 
   async loadPdf() {
-    if (!this.fileUrl || !this.isCanvasReady) return;
+    const loadingTask = pdfjsLib.getDocument(this.fileUrl);
+    this.pdfDoc = await loadingTask.promise;
+    this.totalPages = this.pdfDoc.numPages;
+    this.pageDims = {};
+    await this.renderPages();
+  }
 
-    this.isLoading = true;
-    this.error = null;
-    this.fields = []; // Clear existing fields when loading a new PDF
-
-    try {
-      const loadingTask = pdfjsLib.getDocument(this.fileUrl);
-      this.pdfDocument = await loadingTask.promise;
-      this.totalPages = this.pdfDocument.numPages;
-      this.currentPage = 1;
-
-      // Emit event that PDF is loaded
-      this.pdfLoaded.emit({ pages: this.totalPages });
-
-      // Render the first page
-      await this.renderPage(this.currentPage);
-    } catch (err) {
-      console.error('Error loading PDF:', err);
-      this.error = 'Failed to load PDF. Please check the URL and try again.';
-    } finally {
-      this.isLoading = false;
+  async renderPages() {
+    for (let i = 1; i <= this.totalPages; i++) {
+      const page = await this.pdfDoc.getPage(i);
+      const viewport = page.getViewport({ scale: this.scale });
+      this.pageDims[i] = { width: viewport.width, height: viewport.height };
+      const canvas = this.el.shadowRoot.querySelector(`#canvas-${i}`) as HTMLCanvasElement;
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      await page.render({ canvasContext: context, viewport }).promise;
     }
   }
 
-  async renderPage(pageNumber: number) {
-    if (!this.pdfDocument || !this.canvasRef) {
-      return;
-    }
-
-    try {
-      const page = await this.pdfDocument.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: 1.0 });
-
-      this.canvasRef.height = viewport.height;
-      this.canvasRef.width = viewport.width;
-
-      const renderContext = {
-        canvasContext: this.canvasRef.getContext('2d'),
-        viewport: viewport,
-      };
-
-      await page.render(renderContext).promise;
-    } catch (err) {
-      console.error('Error rendering page:', err);
-      this.error = `Failed to render page ${pageNumber}`;
-    }
-  }
-
-  private handleCanvasClick = (e: MouseEvent) => {
-    if (!this.activeFieldType) return;
-
-    const rect = this.canvasRef.getBoundingClientRect();
+  handleAddField(e: MouseEvent, pageNum: number) {
+    if (!this.selectedFieldType) return;
+    const pageContainer = e.currentTarget as HTMLElement;
+    const rect = pageContainer.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const newField: FormField = {
-      fieldId: `field-${Date.now()}`,
-      type: this.activeFieldType,
+    const def = this.fieldTypes.find(f => f.type === this.selectedFieldType);
+    const newField: Field = {
+      id: `${Date.now()}`,
+      type: this.selectedFieldType,
+      page: pageNum,
       x,
       y,
-      page: this.currentPage,
-      width: this.activeFieldType === 'signature' ? 150 : 200,
-      height: 50,
+      width: def.width,
+      height: def.height,
     };
 
     this.fields = [...this.fields, newField];
-    this.fieldAdded.emit(newField);
-    this.fieldsChanged.emit(this.fields);
+    this.selectedFieldType = null; // auto-clear after adding
+  }
+
+  startDrag(e: MouseEvent, field: Field) {
+    e.stopPropagation();
+    this.draggingField = field;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    this.dragOffsetX = e.clientX - rect.left;
+    this.dragOffsetY = e.clientY - rect.top;
+    document.addEventListener('mousemove', this.handleDrag);
+    document.addEventListener('mouseup', this.stopDrag);
+  }
+
+  handleDrag = (e: MouseEvent) => {
+    if (!this.draggingField) return;
+    const pageContainer = this.el.shadowRoot.querySelector(`.page[data-page="${this.draggingField.page}"]`) as HTMLElement;
+    const rect = pageContainer.getBoundingClientRect();
+    const newX = Math.min(Math.max(0, e.clientX - rect.left - this.dragOffsetX), rect.width - this.draggingField.width);
+    const newY = Math.min(Math.max(0, e.clientY - rect.top - this.dragOffsetY), rect.height - this.draggingField.height);
+    this.fields = this.fields.map(f =>
+      f.id === this.draggingField.id ? { ...f, x: newX, y: newY } : f
+    );
   };
 
-  private handleRemoveField = (fieldId: string) => {
-    this.fields = this.fields.filter((f) => f.fieldId !== fieldId);
-    this.fieldRemoved.emit({ fieldId });
-    this.fieldsChanged.emit(this.fields);
+  stopDrag = () => {
+    this.draggingField = null;
+    document.removeEventListener('mousemove', this.handleDrag);
+    document.removeEventListener('mouseup', this.stopDrag);
   };
 
-  private handlePrevPage = async () => {
-    if (this.currentPage > 1) {
-      this.currentPage--;
-      await this.renderPage(this.currentPage);
-    }
-  };
-
-  private handleNextPage = async () => {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
-      await this.renderPage(this.currentPage);
-    }
-  };
+  deleteField(id: string) {
+    this.fields = this.fields.filter(f => f.id !== id);
+  }
 
   render() {
     return (
       <Host>
-        <div class="signiture-builder">
-          <div class="controls">
-            <div class="field-buttons">
-              <button
-                class={{ 'field-button': true, active: this.activeFieldType === 'signature' }}
-                onClick={() => this.setActiveFieldType(this.activeFieldType === 'signature' ? null : 'signature')}
-                disabled={this.isLoading || !!this.error}
-              >
-                Signature Field
-              </button>
-              <button
-                class={{ 'field-button': true, active: this.activeFieldType === 'name' }}
-                onClick={() => this.setActiveFieldType(this.activeFieldType === 'name' ? null : 'name')}
-                disabled={this.isLoading || !!this.error}
-              >
-                Name Field
-              </button>
+        <div class="toolbar">
+          {this.fieldTypes.map(ft => (
+            <button
+              class={{ active: this.selectedFieldType === ft.type }}
+              onClick={() => (this.selectedFieldType = ft.type)}
+            >
+              {ft.label}
+            </button>
+          ))}
+        </div>
+
+        <div class="pdf-container">
+          {Array.from({ length: this.totalPages }, (_, i) => i + 1).map(pageNum => (
+            <div
+              class="page"
+              data-page={pageNum}
+              onClick={e => this.handleAddField(e, pageNum)}
+              style={{
+                width: `${this.pageDims[pageNum]?.width || 600}px`,
+                height: `${this.pageDims[pageNum]?.height || 800}px`,
+              }}
+            >
+              <canvas id={`canvas-${pageNum}`}></canvas>
+              {this.fields
+                .filter(f => f.page === pageNum)
+                .map(f => (
+                  <div
+                    class={`field ${f.type}`}
+                    style={{
+                      left: `${f.x}px`,
+                      top: `${f.y}px`,
+                      width: `${f.width}px`,
+                      height: `${f.height}px`,
+                    }}
+                    onMouseDown={e => this.startDrag(e, f)}
+                  >
+                    <span>{f.type}</span>
+                    <button onClick={() => this.deleteField(f.id)}>×</button>
+                  </div>
+                ))}
             </div>
-
-            {this.totalPages > 0 && (
-              <div class="page-navigation">
-                <button disabled={this.currentPage <= 1 || this.isLoading} onClick={this.handlePrevPage}>
-                  Previous
-                </button>
-                <span>
-                  Page {this.currentPage} of {this.totalPages}
-                </span>
-                <button disabled={this.currentPage >= this.totalPages || this.isLoading} onClick={this.handleNextPage}>
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div class="pdf-viewer">
-            {this.isLoading && <div class="loading">Loading PDF...</div>}
-            {this.error && <div class="error">{this.error}</div>}
-
-            <div class="pdf-container" style={{ position: 'relative', visibility: (!this.isLoading && !this.error) ? 'visible' : 'hidden' }}>
-              <canvas ref={(el) => (this.canvasRef = el)} onClick={this.handleCanvasClick}></canvas>
-
-              <div class="field-overlay">
-                {this.fields
-                  .filter((field) => field.page === this.currentPage)
-                  .map((field) => (
-                    <div
-                      key={field.fieldId}
-                      class={`field field-${field.type}`}
-                      style={{
-                        position: 'absolute',
-                        left: `${field.x}px`,
-                        top: `${field.y}px`,
-                        width: `${field.width}px`,
-                        height: `${field.height}px`,
-                        backgroundColor: 'rgba(255, 255, 0, 0.4)',
-                        border: '1px solid #333',
-                        cursor: 'move',
-                      }}
-                    >
-                      <div class="field-label">
-                        {field.type === 'signature' ? 'Sign Here' : 'Full Name'}
-                      </div>
-                      <button
-                        class="remove-button"
-                        style={{
-                          position: 'absolute',
-                          top: '0',
-                          right: '0',
-                          background: 'red',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '20px',
-                          height: '20px',
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => this.handleRemoveField(field.fieldId)}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       </Host>
     );

@@ -1,4 +1,4 @@
-import { r as registerInstance, a as createEvent, h, d as Host } from './index-D8rNpgU-.js';
+import { r as registerInstance, g as getElement, h, a as Host } from './index-CZ82tJDt.js';
 
 /**
  * @licstart The following is the entire license notice for the
@@ -22611,160 +22611,116 @@ globalThis.pdfjsLib = {
   XfaLayer: XfaLayer
 };
 
-const signitureBuilderCss = ":host{display:block;font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif}.signiture-builder{display:flex;flex-direction:column;width:100%;height:100%}.loading{display:flex;align-items:center;justify-content:center;height:100%;min-height:200px;color:#64748b;font-size:14px}.pdf-container{display:flex;justify-content:center;background-color:#f1f5f9;padding:20px;overflow:auto;height:100%}canvas{background-color:white;box-shadow:0 1px 3px 0 rgba(0, 0, 0, 0.1)}";
+const signitureBuilderCss = ":host{display:block;font-family:sans-serif}.toolbar{display:flex;gap:10px;margin-bottom:12px;justify-content:center}.toolbar button{padding:6px 14px;border:1px solid #ccc;border-radius:20px;background:#f9f9f9;cursor:pointer;transition:all 0.2s}.toolbar button.active{background:#007bff;color:#fff;border-color:#007bff}.pdf-container{display:flex;flex-direction:column;gap:24px}.page{position:relative;margin:auto;border:1px solid #ddd;box-shadow:0 2px 6px rgba(0, 0, 0, 0.1);cursor:crosshair}canvas{width:100%;height:auto;display:block}.field{position:absolute;background:rgba(255, 255, 0, 0.4);border:1px solid #333;border-radius:4px;display:flex;align-items:center;justify-content:space-between;padding:2px 6px;font-size:12px;cursor:move}.field button{background:red;color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:12px;margin-left:4px;cursor:pointer}";
 
 const SignitureBuilder = class {
     constructor(hostRef) {
         registerInstance(this, hostRef);
-        this.fieldAdded = createEvent(this, "fieldAdded", 7);
-        this.fieldRemoved = createEvent(this, "fieldRemoved", 7);
-        this.fieldsChanged = createEvent(this, "fieldsChanged", 7);
-        this.pdfLoaded = createEvent(this, "pdfLoaded", 7);
     }
+    get el() { return getElement(this); }
     fileUrl;
-    currentPage = 1;
+    pdfDoc;
     totalPages = 0;
-    isLoading = false;
-    error = null;
+    scale = 1.2;
     fields = [];
-    activeFieldType = null;
-    isCanvasReady = false;
-    canvasRef;
-    pdfDocument = null;
-    fieldAdded;
-    fieldRemoved;
-    fieldsChanged;
-    pdfLoaded;
-    async getFields() {
-        return [...this.fields];
-    }
-    async setActiveFieldType(type) {
-        this.activeFieldType = type;
-    }
+    selectedFieldType = null;
+    pageDims = {};
+    draggingField = null;
+    dragOffsetX = 0;
+    dragOffsetY = 0;
+    fieldTypes = [
+        { type: 'signature', label: '✍ Signature', width: 150, height: 50 },
+        { type: 'text', label: '📝 Text', width: 120, height: 40 },
+        { type: 'date', label: '📅 Date', width: 100, height: 40 },
+    ];
     componentWillLoad() {
-        // Set the worker source
         GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.mjs';
-    }
-    componentDidLoad() {
-        // Canvas is now available in the DOM
-        this.isCanvasReady = true;
-        // Load PDF if URL was provided
-        if (this.fileUrl) {
+        if (this.fileUrl)
             this.loadPdf();
-        }
     }
-    async watchFileUrl(newUrl) {
-        if (newUrl && this.isCanvasReady) {
-            this.loadPdf();
-        }
+    fileUrlChanged() {
+        this.loadPdf();
     }
     async loadPdf() {
-        if (!this.fileUrl || !this.isCanvasReady)
-            return;
-        this.isLoading = true;
-        this.error = null;
-        this.fields = []; // Clear existing fields when loading a new PDF
-        try {
-            const loadingTask = getDocument(this.fileUrl);
-            this.pdfDocument = await loadingTask.promise;
-            this.totalPages = this.pdfDocument.numPages;
-            this.currentPage = 1;
-            // Emit event that PDF is loaded
-            this.pdfLoaded.emit({ pages: this.totalPages });
-            // Render the first page
-            await this.renderPage(this.currentPage);
-        }
-        catch (err) {
-            console.error('Error loading PDF:', err);
-            this.error = 'Failed to load PDF. Please check the URL and try again.';
-        }
-        finally {
-            this.isLoading = false;
+        const loadingTask = getDocument(this.fileUrl);
+        this.pdfDoc = await loadingTask.promise;
+        this.totalPages = this.pdfDoc.numPages;
+        this.pageDims = {};
+        await this.renderPages();
+    }
+    async renderPages() {
+        for (let i = 1; i <= this.totalPages; i++) {
+            const page = await this.pdfDoc.getPage(i);
+            const viewport = page.getViewport({ scale: this.scale });
+            this.pageDims[i] = { width: viewport.width, height: viewport.height };
+            const canvas = this.el.shadowRoot.querySelector(`#canvas-${i}`);
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            await page.render({ canvasContext: context, viewport }).promise;
         }
     }
-    async renderPage(pageNumber) {
-        if (!this.pdfDocument || !this.canvasRef) {
+    handleAddField(e, pageNum) {
+        if (!this.selectedFieldType)
             return;
-        }
-        try {
-            const page = await this.pdfDocument.getPage(pageNumber);
-            const viewport = page.getViewport({ scale: 1.0 });
-            this.canvasRef.height = viewport.height;
-            this.canvasRef.width = viewport.width;
-            const renderContext = {
-                canvasContext: this.canvasRef.getContext('2d'),
-                viewport: viewport,
-            };
-            await page.render(renderContext).promise;
-        }
-        catch (err) {
-            console.error('Error rendering page:', err);
-            this.error = `Failed to render page ${pageNumber}`;
-        }
-    }
-    handleCanvasClick = (e) => {
-        if (!this.activeFieldType)
-            return;
-        const rect = this.canvasRef.getBoundingClientRect();
+        const pageContainer = e.currentTarget;
+        const rect = pageContainer.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
+        const def = this.fieldTypes.find(f => f.type === this.selectedFieldType);
         const newField = {
-            fieldId: `field-${Date.now()}`,
-            type: this.activeFieldType,
+            id: `${Date.now()}`,
+            type: this.selectedFieldType,
+            page: pageNum,
             x,
             y,
-            page: this.currentPage,
-            width: this.activeFieldType === 'signature' ? 150 : 200,
-            height: 50,
+            width: def.width,
+            height: def.height,
         };
         this.fields = [...this.fields, newField];
-        this.fieldAdded.emit(newField);
-        this.fieldsChanged.emit(this.fields);
+        this.selectedFieldType = null; // auto-clear after adding
+    }
+    startDrag(e, field) {
+        e.stopPropagation();
+        this.draggingField = field;
+        const rect = e.currentTarget.getBoundingClientRect();
+        this.dragOffsetX = e.clientX - rect.left;
+        this.dragOffsetY = e.clientY - rect.top;
+        document.addEventListener('mousemove', this.handleDrag);
+        document.addEventListener('mouseup', this.stopDrag);
+    }
+    handleDrag = (e) => {
+        if (!this.draggingField)
+            return;
+        const pageContainer = this.el.shadowRoot.querySelector(`.page[data-page="${this.draggingField.page}"]`);
+        const rect = pageContainer.getBoundingClientRect();
+        const newX = Math.min(Math.max(0, e.clientX - rect.left - this.dragOffsetX), rect.width - this.draggingField.width);
+        const newY = Math.min(Math.max(0, e.clientY - rect.top - this.dragOffsetY), rect.height - this.draggingField.height);
+        this.fields = this.fields.map(f => f.id === this.draggingField.id ? { ...f, x: newX, y: newY } : f);
     };
-    handleRemoveField = (fieldId) => {
-        this.fields = this.fields.filter((f) => f.fieldId !== fieldId);
-        this.fieldRemoved.emit({ fieldId });
-        this.fieldsChanged.emit(this.fields);
+    stopDrag = () => {
+        this.draggingField = null;
+        document.removeEventListener('mousemove', this.handleDrag);
+        document.removeEventListener('mouseup', this.stopDrag);
     };
-    handlePrevPage = async () => {
-        if (this.currentPage > 1) {
-            this.currentPage--;
-            await this.renderPage(this.currentPage);
-        }
-    };
-    handleNextPage = async () => {
-        if (this.currentPage < this.totalPages) {
-            this.currentPage++;
-            await this.renderPage(this.currentPage);
-        }
-    };
+    deleteField(id) {
+        this.fields = this.fields.filter(f => f.id !== id);
+    }
     render() {
-        return (h(Host, { key: '3ab31402c9d280e5fb25fd2f06bd2702ab7a091d' }, h("div", { key: '9ddfe29e4fa19f40cdb8520d958a06fffa56f462', class: "signiture-builder" }, h("div", { key: 'b550f6e06b3987b21a9e1340b6b3338304271513', class: "controls" }, h("div", { key: '6ce78763dca91ed3a0d137a6f16381e84a17f3a3', class: "field-buttons" }, h("button", { key: 'ff796956eb940b5b17e299df875d3f446dac8686', class: { 'field-button': true, active: this.activeFieldType === 'signature' }, onClick: () => this.setActiveFieldType(this.activeFieldType === 'signature' ? null : 'signature'), disabled: this.isLoading || !!this.error }, "Signature Field"), h("button", { key: 'e78e6442f65a12ab75b5934f80871731d1d5bcb4', class: { 'field-button': true, active: this.activeFieldType === 'name' }, onClick: () => this.setActiveFieldType(this.activeFieldType === 'name' ? null : 'name'), disabled: this.isLoading || !!this.error }, "Name Field")), this.totalPages > 0 && (h("div", { key: '6b2946b6cdb0c9d634cedf1a992fb5fb981c4e50', class: "page-navigation" }, h("button", { key: '76d273843102c16fbf26a6258e733b208381c9d2', disabled: this.currentPage <= 1 || this.isLoading, onClick: this.handlePrevPage }, "Previous"), h("span", { key: '4649539e156285c235cff04be7f25a398c1613fc' }, "Page ", this.currentPage, " of ", this.totalPages), h("button", { key: '5f7050a7b9085773e8e08d9f54eb35fa9bf08a16', disabled: this.currentPage >= this.totalPages || this.isLoading, onClick: this.handleNextPage }, "Next")))), h("div", { key: 'bce4e9912f68c62ecdf56178122a13abc5af97e7', class: "pdf-viewer" }, this.isLoading && h("div", { key: 'cfd4259d3976505808a7a0e710430a1b02c330a4', class: "loading" }, "Loading PDF..."), this.error && h("div", { key: 'a234a27cb6d5d3ee1cb42ab355af5eee9aaf246b', class: "error" }, this.error), h("div", { key: '2bbb49aaa2e56ad4ac545bfcc7d09208d659f3e5', class: "pdf-container", style: { position: 'relative', visibility: (!this.isLoading && !this.error) ? 'visible' : 'hidden' } }, h("canvas", { key: '94901f1288f9c6f4617eeaf46967b0b5e9ea54cf', ref: (el) => (this.canvasRef = el), onClick: this.handleCanvasClick }), h("div", { key: '1c2966f0cf04f2b486136ddd21399526b484347e', class: "field-overlay" }, this.fields
-            .filter((field) => field.page === this.currentPage)
-            .map((field) => (h("div", { key: field.fieldId, class: `field field-${field.type}`, style: {
-                position: 'absolute',
-                left: `${field.x}px`,
-                top: `${field.y}px`,
-                width: `${field.width}px`,
-                height: `${field.height}px`,
-                backgroundColor: 'rgba(255, 255, 0, 0.4)',
-                border: '1px solid #333',
-                cursor: 'move',
-            } }, h("div", { class: "field-label" }, field.type === 'signature' ? 'Sign Here' : 'Full Name'), h("button", { class: "remove-button", style: {
-                position: 'absolute',
-                top: '0',
-                right: '0',
-                background: 'red',
-                color: 'white',
-                border: 'none',
-                borderRadius: '50%',
-                width: '20px',
-                height: '20px',
-                cursor: 'pointer',
-            }, onClick: () => this.handleRemoveField(field.fieldId) }, "\u00D7"))))))))));
+        return (h(Host, { key: '0ffc57aaed0cf468ddef71bc83ce9080dd2a5fef' }, h("div", { key: '9e6d446ac5231457f09115a3922178f8879d556d', class: "toolbar" }, this.fieldTypes.map(ft => (h("button", { class: { active: this.selectedFieldType === ft.type }, onClick: () => (this.selectedFieldType = ft.type) }, ft.label)))), h("div", { key: '2a4d3942bb0afe6695391291afb0b9ec7f39fa1e', class: "pdf-container" }, Array.from({ length: this.totalPages }, (_, i) => i + 1).map(pageNum => (h("div", { class: "page", "data-page": pageNum, onClick: e => this.handleAddField(e, pageNum), style: {
+                width: `${this.pageDims[pageNum]?.width || 600}px`,
+                height: `${this.pageDims[pageNum]?.height || 800}px`,
+            } }, h("canvas", { id: `canvas-${pageNum}` }), this.fields
+            .filter(f => f.page === pageNum)
+            .map(f => (h("div", { class: `field ${f.type}`, style: {
+                left: `${f.x}px`,
+                top: `${f.y}px`,
+                width: `${f.width}px`,
+                height: `${f.height}px`,
+            }, onMouseDown: e => this.startDrag(e, f) }, h("span", null, f.type), h("button", { onClick: () => this.deleteField(f.id) }, "\u00D7"))))))))));
     }
     static get watchers() { return {
-        "fileUrl": ["watchFileUrl"]
+        "fileUrl": ["fileUrlChanged"]
     }; }
 };
 SignitureBuilder.style = signitureBuilderCss;

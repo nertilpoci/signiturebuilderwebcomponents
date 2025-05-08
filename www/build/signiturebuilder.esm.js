@@ -1,5 +1,5 @@
-import { B as BUILD, c as consoleDevInfo, H, w as win, N as NAMESPACE, p as promiseResolve, b as bootstrapLazy } from './index-D8rNpgU-.js';
-export { s as setNonce } from './index-D8rNpgU-.js';
+import { B as BUILD, c as consoleDevInfo, H, w as win, N as NAMESPACE, p as promiseResolve, b as bootstrapLazy } from './index-CZ82tJDt.js';
+export { s as setNonce } from './index-CZ82tJDt.js';
 import { g as globalScripts } from './app-globals-DQuL1Twl.js';
 
 /*
@@ -44,7 +44,7 @@ var patchCloneNodeFix = (HTMLElementPrototype) => {
 
 patchBrowser().then(async (options) => {
   await globalScripts();
-  return bootstrapLazy([["signiture-builder",[[1,"signiture-builder",{"fileUrl":[1,"file-url"],"currentPage":[32],"totalPages":[32],"isLoading":[32],"error":[32],"fields":[32],"activeFieldType":[32],"isCanvasReady":[32],"getFields":[64],"setActiveFieldType":[64]},null,{"fileUrl":["watchFileUrl"]}]]]], options);
+  return bootstrapLazy([["signiture-builder",[[1,"signiture-builder",{"fileUrl":[1,"file-url"],"pdfDoc":[32],"totalPages":[32],"scale":[32],"fields":[32],"selectedFieldType":[32],"pageDims":[32]},null,{"fileUrl":["fileUrlChanged"]}]]]], options);
 });
 //# sourceMappingURL=signiturebuilder.esm.js.map
 
