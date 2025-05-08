@@ -1,4 +1,4 @@
-import { r as registerInstance, g as getElement, h, a as Host } from './index-CZ82tJDt.js';
+import { r as registerInstance, a as createEvent, g as getElement, h, d as Host } from './index-D1G8Xnxb.js';
 
 /**
  * @licstart The following is the entire license notice for the
@@ -22616,6 +22616,7 @@ const signitureBuilderCss = ":host{display:block;font-family:sans-serif}.toolbar
 const SignitureBuilder = class {
     constructor(hostRef) {
         registerInstance(this, hostRef);
+        this.fieldsChanged = createEvent(this, "fieldsChanged", 7);
     }
     get el() { return getElement(this); }
     fileUrl;
@@ -22625,6 +22626,7 @@ const SignitureBuilder = class {
     fields = [];
     selectedFieldType = null;
     pageDims = {};
+    fieldsChanged;
     draggingField = null;
     dragOffsetX = 0;
     dragOffsetY = 0;
@@ -22678,7 +22680,8 @@ const SignitureBuilder = class {
             height: def.height,
         };
         this.fields = [...this.fields, newField];
-        this.selectedFieldType = null; // auto-clear after adding
+        this.fieldsChanged.emit(this.fields);
+        this.selectedFieldType = null;
     }
     startDrag(e, field) {
         e.stopPropagation();
@@ -22697,6 +22700,7 @@ const SignitureBuilder = class {
         const newX = Math.min(Math.max(0, e.clientX - rect.left - this.dragOffsetX), rect.width - this.draggingField.width);
         const newY = Math.min(Math.max(0, e.clientY - rect.top - this.dragOffsetY), rect.height - this.draggingField.height);
         this.fields = this.fields.map(f => f.id === this.draggingField.id ? { ...f, x: newX, y: newY } : f);
+        this.fieldsChanged.emit(this.fields);
     };
     stopDrag = () => {
         this.draggingField = null;
@@ -22705,9 +22709,10 @@ const SignitureBuilder = class {
     };
     deleteField(id) {
         this.fields = this.fields.filter(f => f.id !== id);
+        this.fieldsChanged.emit(this.fields);
     }
     render() {
-        return (h(Host, { key: '0ffc57aaed0cf468ddef71bc83ce9080dd2a5fef' }, h("div", { key: '9e6d446ac5231457f09115a3922178f8879d556d', class: "toolbar" }, this.fieldTypes.map(ft => (h("button", { class: { active: this.selectedFieldType === ft.type }, onClick: () => (this.selectedFieldType = ft.type) }, ft.label)))), h("div", { key: '2a4d3942bb0afe6695391291afb0b9ec7f39fa1e', class: "pdf-container" }, Array.from({ length: this.totalPages }, (_, i) => i + 1).map(pageNum => (h("div", { class: "page", "data-page": pageNum, onClick: e => this.handleAddField(e, pageNum), style: {
+        return (h(Host, { key: 'a5b6046d0b92e3aedf6417fbc8c45ae8a3479636' }, h("div", { key: '4ca5377199ab4cd1edb8db57f7ebb0830e401960', class: "toolbar" }, this.fieldTypes.map(ft => (h("button", { class: { active: this.selectedFieldType === ft.type }, onClick: () => (this.selectedFieldType = ft.type) }, ft.label)))), h("div", { key: '01a8e2ba944910b010103185e1fd7bb6c4f06b67', class: "pdf-container" }, Array.from({ length: this.totalPages }, (_, i) => i + 1).map(pageNum => (h("div", { class: "page", "data-page": pageNum, onClick: e => this.handleAddField(e, pageNum), style: {
                 width: `${this.pageDims[pageNum]?.width || 600}px`,
                 height: `${this.pageDims[pageNum]?.height || 800}px`,
             } }, h("canvas", { id: `canvas-${pageNum}` }), this.fields

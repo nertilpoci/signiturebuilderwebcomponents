@@ -1,4 +1,4 @@
-import { Component, Host, h, Prop, State, Element, Watch } from '@stencil/core';
+import { Component, Host, h, Prop, State, Element, Watch, Event, EventEmitter } from '@stencil/core';
 import * as pdfjsLib from 'pdfjs-dist';
 
 interface Field {
@@ -26,6 +26,8 @@ export class SignitureBuilder {
   @State() fields: Field[] = [];
   @State() selectedFieldType: string = null;
   @State() pageDims: Record<number, { width: number; height: number }> = {};
+
+  @Event() fieldsChanged: EventEmitter<Field[]>;
 
   private draggingField: Field = null;
   private dragOffsetX = 0;
@@ -87,7 +89,8 @@ export class SignitureBuilder {
     };
 
     this.fields = [...this.fields, newField];
-    this.selectedFieldType = null; // auto-clear after adding
+    this.fieldsChanged.emit(this.fields);
+    this.selectedFieldType = null;
   }
 
   startDrag(e: MouseEvent, field: Field) {
@@ -106,9 +109,11 @@ export class SignitureBuilder {
     const rect = pageContainer.getBoundingClientRect();
     const newX = Math.min(Math.max(0, e.clientX - rect.left - this.dragOffsetX), rect.width - this.draggingField.width);
     const newY = Math.min(Math.max(0, e.clientY - rect.top - this.dragOffsetY), rect.height - this.draggingField.height);
+
     this.fields = this.fields.map(f =>
       f.id === this.draggingField.id ? { ...f, x: newX, y: newY } : f
     );
+    this.fieldsChanged.emit(this.fields);
   };
 
   stopDrag = () => {
@@ -119,6 +124,7 @@ export class SignitureBuilder {
 
   deleteField(id: string) {
     this.fields = this.fields.filter(f => f.id !== id);
+    this.fieldsChanged.emit(this.fields);
   }
 
   render() {

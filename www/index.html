@@ -1,29 +1,65 @@
-<!doctype html><html dir="ltr" lang="en"><head> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0"> <title>Stencil Component Starter</title> <script type="module" src="/build/signiturebuilder.esm.js" data-stencil></script> <script nomodule="" src="/build/signiturebuilder.js" data-stencil></script> <style>body {
-        padding: 20px;
-        font-family: system-ui, sans-serif;
-      }
-      .container {
-        width: 800px;
-        height: 600px;
-        margin: 0 auto;
-      }
-      .controls {
-        margin-bottom: 20px;
-      }</style> </head> <body> <!-- Replace the default component with your testing setup --> <div class="container"> <h2>Signature Builder Test</h2> <div class="controls"> <input id="pdfInput" type="text" value="https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf" style="width: 500px;"> <button id="loadButton">Load PDF</button> </div> <!-- Your component here --> <signiture-builder id="builder"></signiture-builder> </div> <script>
-      // Simple test script
-      document.addEventListener('DOMContentLoaded', () => {
-        const builder = document.getElementById('builder');
-        const pdfInput = document.getElementById('pdfInput');
-        const loadButton = document.getElementById('loadButton');
-        
-        loadButton.addEventListener('click', () => {
-          const url = pdfInput.value.trim();
-          if (url) {
-            builder.fileUrl = url;
-          }
-        });
+<!doctype html><html dir="ltr" lang="en"><head> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"> <title>Signature Builder Demo</title> <script type="module" src="/build/signiturebuilder.esm.js" data-stencil></script> <script nomodule="" src="/build/signiturebuilder.js" data-stencil></script> <style>html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: system-ui, sans-serif;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .top-panel {
+      flex: 0 0 80%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .top-panel-inner {
+      flex: 1;
+      overflow: auto;
+      border: 1px solid #ddd;
+    }
+    .bottom-panel {
+      flex: 0 0 20%;
+      overflow: auto;
+      border-top: 1px solid #ddd;
+      background: #f9f9f9;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre;
+      box-sizing: border-box;
+    }
+    .controls {
+      margin-bottom: 10px;
+    }
+    signiture-builder {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }</style> </head> <body> <div class="container"> <div class="top-panel"> <h2>Signature Builder Demo</h2> <div class="controls"> <input id="pdfInput" type="text" value="https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf" style="width: 500px;"> <button id="loadButton">Load PDF</button> </div> <div class="top-panel-inner"> <signiture-builder id="builder"></signiture-builder> </div> </div> <div class="bottom-panel" id="jsonOutput"> { "fields": [] } </div> </div> <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const builder = document.getElementById('builder');
+      const pdfInput = document.getElementById('pdfInput');
+      const loadButton = document.getElementById('loadButton');
+      const jsonOutput = document.getElementById('jsonOutput');
+
+      loadButton.addEventListener('click', () => {
+        const url = pdfInput.value.trim();
+        if (url) {
+          builder.fileUrl = url;
+        }
       });
-    </script> <script>
+
+      builder.addEventListener('fieldsChanged', e => {
+        const fields = e.detail || [];
+        jsonOutput.textContent = JSON.stringify(fields, null, 2);
+      });
+    });
+  </script> <script>
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   // auto-unregister service worker during dev mode
   navigator.serviceWorker.getRegistration().then(function(registration) {
