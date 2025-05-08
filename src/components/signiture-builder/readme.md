@@ -14,40 +14,9 @@
 
 ## Events
 
-| Event           | Description | Type                                |
-| --------------- | ----------- | ----------------------------------- |
-| `fieldAdded`    |             | `CustomEvent<FormField>`            |
-| `fieldRemoved`  |             | `CustomEvent<{ fieldId: string; }>` |
-| `fieldsChanged` |             | `CustomEvent<FormField[]>`          |
-
-
-## Methods
-
-### `getFields() => Promise<FormField[]>`
-
-
-
-#### Returns
-
-Type: `Promise<FormField[]>`
-
-
-
-### `setActiveFieldType(type: "signature" | "name") => Promise<void>`
-
-
-
-#### Parameters
-
-| Name   | Type                    | Description |
-| ------ | ----------------------- | ----------- |
-| `type` | `"signature" \| "name"` |             |
-
-#### Returns
-
-Type: `Promise<void>`
-
-
+| Event           | Description | Type                   |
+| --------------- | ----------- | ---------------------- |
+| `fieldsChanged` |             | `CustomEvent<Field[]>` |
 
 
 ----------------------------------------------

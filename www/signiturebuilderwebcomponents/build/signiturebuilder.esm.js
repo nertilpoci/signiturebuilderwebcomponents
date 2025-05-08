@@ -1,0 +1,2 @@
+import{p as e,b as r}from"./p-Cj32UhRt.js";export{s as setNonce}from"./p-Cj32UhRt.js";import{g as l}from"./p-DQuL1Twl.js";var t=()=>{const r=import.meta.url;const s={};if(r!==""){s.resourcesUrl=new URL(".",r).href}return e(s)};t().then((async e=>{await l();return r([["p-bf272aab",[[1,"signiture-builder",{fileUrl:[1,"file-url"],pdfDoc:[32],totalPages:[32],scale:[32],fields:[32],selectedFieldType:[32],pageDims:[32]},null,{fileUrl:["fileUrlChanged"]}]]]],e)}));
+//# sourceMappingURL=signiturebuilder.esm.js.map
