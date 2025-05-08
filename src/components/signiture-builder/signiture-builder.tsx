@@ -40,7 +40,9 @@ export class SignitureBuilder {
   ];
 
   componentWillLoad() {
+    // pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.mjs';
     pdfjsLib.GlobalWorkerOptions.workerSrc = '/signiturebuilderwebcomponents/assets/pdf.worker.min.mjs';
+
     if (this.fileUrl) this.loadPdf();
   }
 
