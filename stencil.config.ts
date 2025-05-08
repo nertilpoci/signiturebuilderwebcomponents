@@ -17,8 +17,8 @@ export const config: Config = {
     },
     {
       type: 'www',
+      dir: 'www',
       serviceWorker: null,
-      baseUrl: 'https://nertilpoci.github.io/signiturebuilderwebcomponents/signiturebuilderwebcomponents/', 
       copy: [
         {
           src: '../node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
