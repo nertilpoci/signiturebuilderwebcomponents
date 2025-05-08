@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0" />
+    <title>Stencil Component Starter</title>
+
+    <script type="module" src="/build/signiturebuilder.esm.js"></script>
+    <script nomodule src="/build/signiturebuilder.js"></script>
+    <style>
+      body {
+        padding: 20px;
+        font-family: system-ui, sans-serif;
+      }
+      .container {
+        width: 800px;
+        height: 600px;
+        margin: 0 auto;
+      }
+      .controls {
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Replace the default component with your testing setup -->
+    <div class="container">
+      <h2>Signature Builder Test</h2>
+      
+      <div class="controls">
+        <input 
+          id="pdfInput" 
+          type="text" 
+          value="https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf" 
+          style="width: 500px;"
+        >
+        <button id="loadButton">Load PDF</button>
+      </div>
+      
+      <!-- Your component here -->
+      <signiture-builder id="builder"></signiture-builder>
+    </div>
+
+    <script>
+      // Simple test script
+      document.addEventListener('DOMContentLoaded', () => {
+        const builder = document.getElementById('builder');
+        const pdfInput = document.getElementById('pdfInput');
+        const loadButton = document.getElementById('loadButton');
+        
+        loadButton.addEventListener('click', () => {
+          const url = pdfInput.value.trim();
+          if (url) {
+            builder.fileUrl = url;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
